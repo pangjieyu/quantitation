@@ -1,34 +1,42 @@
-
 class StrategyBase:
-    def __init__(self):
-        pass
+    def __init__(self, data, settings):
+        """
+        Initialize the strategy with market data and settings.
 
-    def initialize(self, context):
+        :param data: Initial market data.
+        :param settings: Strategy-specific settings.
         """
-        初始化策略，在策略启动时调用一次
-        :param context: 传递市场数据、交易函数等
-        """
-        raise NotImplementedError("Should implement initialize method")
+        self.data = data
+        self.settings = settings
+        self.setup()
 
-    def handle_data(self, context, data):
+    def setup(self):
         """
-        核心交易逻辑，每个交易周期调用一次
-        :param context: 传递市场数据、交易函数等
-        :param data: 当前交易周期的数据
+        Set up the strategy (e.g., load historical data, initialize indicators).
         """
-        raise NotImplementedError("Should implement handle_data method")
+        pass  # This should be implemented by subclasses to perform any initial setup.
 
-    def before_trading_start(self, context):
+    def update_data(self, new_data):
         """
-        每日交易开始前调用一次
-        :param context: 传递市场数据、交易函数等
-        """
-        pass
+        Update the strategy's market data.
 
-    def analyze(self, context, perf):
+        :param new_data: New market data.
         """
-        策略结束后的分析函数
-        :param context: 传递市场数据、交易函数等
-        :param perf: 策略的性能数据
+        # Example implementation: Append new data to existing data.
+        # This is highly simplified; real implementations might need more sophisticated handling.
+        self.data.append(new_data)
+
+    def calculate_signals(self):
         """
-        pass
+        Calculate trading signals based on the current market data.
+        """
+        raise NotImplementedError("Method 'calculate_signals' must be defined in the subclass")
+
+    def execute_trade(self, signal):
+        """
+        Execute a trade based on the calculated signal.
+
+        :param signal: The trading signal to act upon.
+        """
+        raise NotImplementedError("Method 'execute_trade' must be defined in the subclass")
+

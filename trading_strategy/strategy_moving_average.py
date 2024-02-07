@@ -1,51 +1,50 @@
-from strategy_base import StrategyBase
-import pandas as pd
+# In trading_strategy/strategy_moving_average.py
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
+from trading_strategy.strategy_base import StrategyBase
+from utils.binance_connector import BinanceConnector
 
 class StrategyMovingAverage(StrategyBase):
-    def __init__(self, binance_connector, symbol, quantity):
-        super().__init__()
-        self.binance_connector = binance_connector
-        self.symbol = symbol
-        self.quantity = quantity
-    
-    def analyze_market_data(self):
+    def __init__(self, data, short_window=5, long_window=20):
         """
-        分析市场数据
+        Moving Average Strategy.
+
+        :param data: Initial market data as a DataFrame.
+        :param short_window: Window size for the short moving average.
+        :param long_window: Window size for the long moving average.
         """
-        # 获取最近一小时的平均价格
-        average_price_last_hour = self.binance_connector.get_last_hour_average_price(self.symbol)
-        # 获取最近一分钟的市场数据
-        recent_market_data = self.binance_connector.get_recent_market_data(self.symbol)
-        if not recent_market_data:
-            print("Failed to fetch recent market data.")
-            return None
-        current_price = float(recent_market_data['close'])
+        super().__init__(data, {})
+        self.binance_connector = BinanceConnector
+        self.short_window = short_window
+        self.long_window = long_window
+        self.data['short_mavg'] = data['close'].rolling(window=short_window, min_periods=1).mean()
+        self.data['long_mavg'] = data['close'].rolling(window=long_window, min_periods=1).mean()
+        self.data['signal'] = 0  # Default to no position
+        self.generate_signals()
 
-        print(f"Current Price: {current_price}, Last Hour Average Price: {average_price_last_hour}")
-        
-        if current_price > average_price_last_hour:
-            return 'buy'
-        elif current_price < average_price_last_hour:
-            return 'sell'
-        else:
-            return 'hold'
+    def generate_signals(self):
+        """
+        Generate signals based on moving average crossovers.
+        """
+        self.data['signal'][self.short_window:] = np.where(self.data['short_mavg'][self.short_window:] > self.data['long_mavg'][self.short_window:], 1.0, 0.0)
 
-    def execute_trade(self, decision):
-        if decision == 'buy':
-            print("Executing buy order")
-            # 这里演示代码，实际应用中需要处理order_market_buy的返回值和可能的异常
-            self.binance_connector.client.order_market_buy(symbol=self.symbol, quantity=self.quantity)
-        elif decision == 'sell':
-            print("Executing sell order")
-            # 这里演示代码，实际应用中需要处理order_market_sell的返回值和可能的异常
-            self.binance_connector.client.order_market_sell(symbol=self.symbol, quantity=self.quantity)
-        else:
-            print("Holding position")
+        # Taking the diff to identify changes in the signal
+        self.data['positions'] = self.data['signal'].diff()
 
-    def run(self):
-        decision = self.analyze_market_data()
-        if decision:
-            self.execute_trade(decision)
-    
+    def calculate_signals(self):
+        return self.data[self.data['positions'] != 0]
+
+    def execute_trade(self, signal):
+        """
+        Execute a trade based on the signal.
+
+        :param signal: The trading signal to act upon.
+        """
+        if signal["positions"] == 1.0:
+            # This indicates a buy signal
+            self.binance_connector.create_order(symbol='YOUR_SYMBOL', order_type='MARKET', side='BUY', quantity='YOUR_QUANTITY')
+        elif signal['positions'] == -1.0:
+            # This indicates a sell signal
+            self.binance_connector.create_order(symbol='YOUR_SYMBOL', order_type='MARKET', side='SELL', quantity='YOUR_QUANTITY')
+
+        print(f"Executing trade for signal: {signal}")
